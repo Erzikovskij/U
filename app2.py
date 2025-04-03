@@ -187,3 +187,61 @@ def input_student_data() -> Student:
         exam_count += 1
     
     return student
+
+def main():
+    """Основная функция программы"""
+    group = Group()  # Создаем пустую группу
+    
+    # Выбор способа загрузки данных
+    print("1. Ввести данные студентов вручную")
+    print("2. Загрузить данные из базы данных")
+    choice = input("Выберите вариант: ")
+    
+    if choice == "1":
+        # Ручной ввод данных
+        try:
+            num_students = int(input("Введите количество студентов в группе: "))
+            for _ in range(num_students):
+                student = input_student_data()  # Ввод данных студента
+                group.add_student(student)     # Добавление студента в группу
+            
+            group.save_to_db()  # Сохранение в базу данных
+        except ValueError:
+            print("Ошибка: введите корректное число")
+    elif choice == "2":
+        # Загрузка из базы данных
+        loaded_group = Group.load_from_db()
+        if loaded_group:
+            group = loaded_group
+            print("Данные успешно загружены из базы данных")
+        else:
+            print("Не удалось загрузить данные из базы данных или база данных пуста")
+            return
+    else:
+        print("Некорректный выбор")
+        return
+    
+    # Основной цикл программы
+    while True:
+        print("\nМеню:")
+        print("1. Вывести список студентов")
+        print("2. Добавить нового студента")
+        print("3. Сохранить данные в базу")
+        print("4. Выход")
+        
+        choice = input("Выберите действие: ")
+        
+        if choice == "1":
+            group.print_students_table()  # Вывод таблицы студентов
+        elif choice == "2":
+            student = input_student_data()  # Добавление нового студента
+            group.add_student(student)
+        elif choice == "3":
+            group.save_to_db()  # Сохранение данных
+        elif choice == "4":
+            break  # Выход из программы
+        else:
+            print("Некорректный выбор")
+
+if __name__ == "__main__":
+    main()
