@@ -92,4 +92,98 @@ class Group:
         cursor.execute("DELETE FROM exams")
         cursor.execute("DELETE FROM students")
         
+        # Добавляем студентов в базу данных
+        for student in self.students:
+            cursor.execute(
+                "INSERT INTO students (last_name, first_name, birth_date) VALUES (?, ?, ?)",
+                (student.last_name, student.first_name, student.birth_date)
+            )
+            student_id = cursor.lastrowid  # Получаем ID только что добавленного студента
+            
+            # Добавляем экзамены этого студента
+            for exam in student.record_book:
+                cursor.execute(
+                    "INSERT INTO exams (student_id, subject, exam_date, teacher_name) VALUES (?, ?, ?, ?)",
+                    (student_id, exam['subject'], exam['exam_date'], exam['teacher_name'])
+                )
         
+        conn.commit()  # Сохраняем изменения
+        conn.close()   # Закрываем соединение
+        print(f"\nДанные сохранены в базу данных {db_name}")
+    
+    @classmethod
+    def load_from_db(cls, db_name: str = "students.db") -> Optional['Group']:
+        """
+        Загружает данные группы из SQLite базы данных
+        :param db_name: Имя файла базы данных (по умолчанию students.db)
+        :return: Объект Group с загруженными данными или None, если произошла ошибка
+        """
+        try:
+            conn = sqlite3.connect(db_name)  # Подключаемся к базе данных
+            cursor = conn.cursor()          # Создаем курсор
+            
+            # Получаем всех студентов из базы
+            cursor.execute("SELECT id, last_name, first_name, birth_date FROM students")
+            students_data = cursor.fetchall()
+            
+            # Если нет данных, возвращаем None
+            if not students_data:
+                return None
+            
+            # Создаем новую группу
+            group = cls()
+            
+            # Обрабатываем каждого студента
+            for student_id, last_name, first_name, birth_date in students_data:
+                student = Student(last_name, first_name, birth_date)
+                
+                # Получаем все экзамены этого студента
+                cursor.execute(
+                    "SELECT subject, exam_date, teacher_name FROM exams WHERE student_id = ?",
+                    (student_id,)
+                )
+                exams_data = cursor.fetchall()
+                
+                # Добавляем экзамены в зачетку студента
+                for subject, exam_date, teacher_name in exams_data:
+                    student.add_exam(subject, exam_date, teacher_name)
+                
+                # Добавляем студента в группу
+                group.add_student(student)
+            
+            conn.close()  # Закрываем соединение
+            return group
+        
+        except sqlite3.Error:  # Если произошла ошибка при работе с базой
+            return None
+
+def input_student_data() -> Student:
+    """Функция для ввода данных о студенте с клавиатуры"""
+    print("\nВведите данные студента:")
+    last_name = input("Фамилия: ")
+    first_name = input("Имя: ")
+    birth_date = input("Дата рождения (ГГГГ-ММ-ДД): ")
+    
+    # Создаем объект студента
+    student = Student(last_name, first_name, birth_date)
+    
+    # Добавляем экзамены (от 3 до 5)
+    print("\nДобавьте экзамены в зачетку (от 3 до 5):")
+    exam_count = 0
+    while exam_count < 5:
+        # После 3 экзаменов спрашиваем, нужно ли добавить еще
+        if exam_count >= 3:
+            more = input(f"Добавлено {exam_count} экзаменов. Добавить еще? (y/n): ")
+            if more.lower() != 'y':
+                break
+        
+        # Ввод данных об экзамене
+        subject = input("Предмет: ")
+        exam_date = input("Дата экзамена (ГГГГ-ММ-ДД): ")
+        teacher_name = input("ФИО преподавателя: ")
+        
+        # Добавляем экзамен в зачетку
+        student.add_exam(subject, exam_date, teacher_name)
+        exam_count += 1
+    
+    return student
